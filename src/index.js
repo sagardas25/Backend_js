@@ -1,22 +1,16 @@
-import app from "./app.js"
-import dotenv from "dotenv"
+import app from "./app.js";
+import dotenv from "dotenv";
 import logger from "../logger.js";
 import morgan from "morgan";
-
+import connectDB from "./db/index.js";
 
 const morganFormat = ":method :url :status :response-time ms";
 
-
 dotenv.config({
+  path: "./.env",
+});
 
-  path : "./.env"
-
-})
-
-
-
-const port = process.env.PORT || 3000
-
+const port = process.env.PORT || 3000;
 
 app.use(
   morgan(morganFormat, {
@@ -34,12 +28,12 @@ app.use(
   })
 );
 
-
-app.get('/', (req, res) => {
-  res.send('Hello World!')
-})
-
-
-app.listen(port, () => {
-  console.log(` app listening on port ${port}`)
-})
+connectDB()
+  .then(() => {
+    app.listen(port, () => {
+      console.log(` app listening on port ${port}`);
+    });
+  })
+  .catch((err) => {
+    console.log("DB connection errorr", err);
+  });
