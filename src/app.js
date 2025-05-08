@@ -1,5 +1,6 @@
 import express from "express";
 import cors from "cors";
+import cookieParser from "cookie-parser";
 
 const app = express();
 
@@ -21,6 +22,7 @@ app.use(
 );
 
 app.use(express.static("public"));
+app.use(cookieParser())
 
 //import route
 import healthcheckRouter from "./routes/healthchek.route.js";
