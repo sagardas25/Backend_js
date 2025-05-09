@@ -83,7 +83,7 @@ const registerUser = asyncHandler(async (req, res) => {
       fullName,
       avatar: avatar?.url,
       coverImage: coverImage?.url || "",
-      username: username.toLowerCase(),
+      username: usename.toLowerCase(),
       email,
       password,
     });
@@ -100,11 +100,18 @@ const registerUser = asyncHandler(async (req, res) => {
       .status(201)
       .json(new ApiResponse(200, createdUser, "user registered succesfully"));
   } catch (error) {
+    console.log("user creation failed , error : " + error);
+
+    console.log(avatar);
+    console.log(coverImage);
+
     if (avatar) {
-      deleteFromCloudinary(avatar.public_id);
+      console.log("deleted avatar from cloudinary");
+      await deleteFromCloudinary(avatar.public_id);
     }
     if (coverImage) {
-      deleteFromCloudinary(coverImage.public_id);
+      console.log("deleted cover Image from cloudinary");
+      await deleteFromCloudinary(coverImage.public_id);
     }
 
     throw new ApiError(
