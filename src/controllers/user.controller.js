@@ -2,7 +2,10 @@ import { ApiError } from "../utills/ApiError.js";
 import { ApiResponse } from "../utills/ApiResponses.js";
 import { asyncHandler } from "../utills/asyncHnadler.js";
 import { User } from "../models/user.models.js";
-import { uploadOnCloudinary } from "../utills/cloudinary.js";
+import {
+  uploadOnCloudinary,
+  deleteFromCloudinary,
+} from "../utills/cloudinary.js";
 import fs from "fs";
 
 const registerUser = asyncHandler(async (req, res) => {
@@ -19,9 +22,6 @@ const registerUser = asyncHandler(async (req, res) => {
     throw new ApiError(400, "All fields are required");
   }
 
-
- 
-
   console.warn(req.files);
   const coverImageLocalPath = req.files?.coverImage?.[0]?.path;
   const avatarLocalPath = req.files?.avatar?.[0]?.path;
@@ -33,12 +33,16 @@ const registerUser = asyncHandler(async (req, res) => {
   if (existedUser) {
     fs.unlink(avatarLocalPath, (err) => {
       if (err) {
-        console.log("error in deleting avatar in case of existing avatar" + err);
+        console.log(
+          "error in deleting avatar in case of existing avatar" + err
+        );
       }
     });
     fs.unlink(coverImageLocalPath, (err) => {
       if (err) {
-        console.log("error in deleting avatar in case of existing cover image" + err);
+        console.log(
+          "error in deleting avatar in case of existing cover image" + err
+        );
       }
     });
     throw new ApiError(409, "user with same username or email already exists");
@@ -74,26 +78,40 @@ const registerUser = asyncHandler(async (req, res) => {
     throw new ApiError(500, "something went wrong during uploading coverImage");
   }
 
-  const user = await User.create({
-    fullName,
-    avatar: avatar?.url,
-    coverImage: coverImage?.url || "",
-    username: username.toLowerCase(),
-    email,
-    password,
-  });
+  try {
+    const user = await User.create({
+      fullName,
+      avatar: avatar?.url,
+      coverImage: coverImage?.url || "",
+      username: username.toLowerCase(),
+      email,
+      password,
+    });
 
-  const createdUser = await User.findById(user._id).select(
-    "-password -refreshToken"
-  );
+    const createdUser = await User.findById(user._id).select(
+      "-password -refreshToken"
+    );
 
-  if (!createdUser) {
-    ApiError(500, "something went wrong during registering");
+    if (!createdUser) {
+      throw new ApiError(500, "something went wrong during registering");
+    }
+
+    return res
+      .status(201)
+      .json(new ApiResponse(200, createdUser, "user registered succesfully"));
+  } catch (error) {
+    if (avatar) {
+      deleteFromCloudinary(avatar.public_id);
+    }
+    if (coverImage) {
+      deleteFromCloudinary(coverImage.public_id);
+    }
+
+    throw new ApiError(
+      500,
+      "something went wrong during registering so deleted files from cloudinary"
+    );
   }
-
-  return res
-    .status(201)
-    .json(new ApiResponse(200, createdUser, "user registered succesfully"));
 });
 
 export { registerUser };
