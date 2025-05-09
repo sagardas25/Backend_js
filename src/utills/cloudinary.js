@@ -1,5 +1,10 @@
 import { v2 as cloudinary } from "cloudinary";
+import { log } from "console";
 import fs from "fs";
+import dotenv from "dotenv";
+
+dotenv.config();
+
 // Configuration
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -17,16 +22,29 @@ const uploadOnCloudinary = async (localFilePath) => {
 
     console.log("file uploaded on cloudinary , file url : " + response.url);
 
-    const optimizedUrl = cloudinary.url(response.public_id, {
-      fetch_format: "auto",
-      quality: "auto",
-    });
+    // const optimizedUrl = cloudinary.url(response.public_id, {
+    //   fetch_format: "auto",
+    //   quality: "auto",
+    // });
 
-    fs.unlink(localFilePath); // removing it from local server after uploading on cloudinary
+    fs.unlink(localFilePath, (err) => {
+      if (err) {
+        console.log(
+          "error in dleteing local server file after uploading on cloudinary" +
+            err
+        );
+      }
+    }); // removing it from local server after uploading on cloudinary
 
-    return optimizedUrl;
+    return response;
   } catch (error) {
-    fs.unlinkSync(localFilePath); // removing the file from local storate as well
+    console.log("error in cloudinary : " + error);
+
+    fs.unlink(localFilePath, (err) => {
+      if (err) {
+        console.log("error in deleting local server on  error" + err);
+      }
+    }); // removing the file from local storage as well
     return null;
   }
 };
