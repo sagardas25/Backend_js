@@ -2,11 +2,10 @@ import { ApiError } from "../utills/ApiError.js";
 import { ApiResponse } from "../utills/ApiResponses.js";
 import { asyncHandler } from "../utills/asyncHnadler.js";
 import { User } from "../models/user.models.js";
-import {
-  uploadOnCloudinary,
-  deleteFromCloudinary,
-} from "../utills/cloudinary.js";
+import {uploadOnCloudinary,deleteFromCloudinary,} from "../utills/cloudinary.js";
 import fs from "fs";
+import jwt from "jsonwebtoken"
+
 
 const generateAccessAndRefreshToken = async (userId) => {
   try {
@@ -24,6 +23,12 @@ const generateAccessAndRefreshToken = async (userId) => {
     throw new ApiError("500", "something went wrong during token generation");
   }
 };
+
+const logoutUser = asyncHandler(async (req, res) => {
+  await User.findByIdAndUpdate(
+    //later
+  );
+});
 
 const registerUser = asyncHandler(async (req, res) => {
   const { fullName, email, username, password } = req.body;
@@ -194,4 +199,54 @@ const loginUser = asyncHandler(async (req, res) => {
     );
 });
 
-export { registerUser , loginUser };
+const refreshAccessToken = asyncHandler(async (req, res) => {
+  const incomingRefreshToken =
+    req.cookies.refreshToken || req.body.refreshToken;
+
+  if (!incomingRefreshToken) {
+    throw new ApiError(401, "Refresh token is required...");
+  }
+
+  try {
+    const decodedToken = jwt.verify(
+      incomingRefreshToken,
+      process.env.REFRESH_TOKEN_SECRET
+    );
+
+    const user = await User.findById(decodedToken?._id);
+    if (!user) {
+      throw new ApiError(401, "Invalid refresh token...");
+    }
+
+    if (incomingRefreshToken !== user?.refreshToken) {
+      throw new ApiError(401, "Invalid refresh token...");
+    }
+
+    const options = {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+    };
+
+    const { accessToken, refreshToken: newRefreshToken } =
+      await generateAccessAndRefreshToken(user._id);
+
+    return res
+      .status(200)
+      .cookie("accessToken", accessToken, options)
+      .cookie("refressToken", newRefreshToken, options)
+      .json(
+        new ApiResponse(
+          200,
+          {
+            accessToken,
+            refreshToken: newRefreshToken,
+          },
+          "access token refreshed succesfully"
+        )
+      );
+  } catch (error) {
+    throw new ApiError(401, "something went wrong during refreshing token...");
+  }
+});
+
+export { registerUser, loginUser, refreshAccessToken };
