@@ -2,10 +2,12 @@ import { ApiError } from "../utills/ApiError.js";
 import { ApiResponse } from "../utills/ApiResponses.js";
 import { asyncHandler } from "../utills/asyncHnadler.js";
 import { User } from "../models/user.models.js";
-import {uploadOnCloudinary,deleteFromCloudinary,} from "../utills/cloudinary.js";
+import {
+  uploadOnCloudinary,
+  deleteFromCloudinary,
+} from "../utills/cloudinary.js";
 import fs from "fs";
-import jwt from "jsonwebtoken"
-
+import jwt from "jsonwebtoken";
 
 const generateAccessAndRefreshToken = async (userId) => {
   try {
@@ -26,8 +28,27 @@ const generateAccessAndRefreshToken = async (userId) => {
 
 const logoutUser = asyncHandler(async (req, res) => {
   await User.findByIdAndUpdate(
-    //later
+    req.user._id,
+    {
+      $set: {
+        refreshToken: undefined,
+      },
+    },
+    {
+      new: true,
+    }
   );
+
+  const options = {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+  };
+
+  return res
+    .status(200)
+    .clearCookie("accessToken", options)
+    .clearCookie("refressToken", options)
+    .json(new ApiResponse(200, {}, "user logged out succesfully"));
 });
 
 const registerUser = asyncHandler(async (req, res) => {
@@ -249,4 +270,4 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
   }
 });
 
-export { registerUser, loginUser, refreshAccessToken };
+export { registerUser, loginUser, refreshAccessToken ,logoutUser};
