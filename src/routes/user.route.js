@@ -5,6 +5,9 @@ import { verifyJwt } from "../middlewares/auth.middleware.js";
 
 const router = Router();
 
+//multur middleware : upload.fields(...) is used to handle the  files. 
+//it uploads the files correctly and made the files available in req.body or req.files in the controller
+// after that controller performs the business logics
 router.route("/register").post(
   upload.fields([
     {
@@ -20,11 +23,7 @@ router.route("/register").post(
   registerUser
 );
 
+//secured route
+router.route("/logout").post(verifyJwt, logoutUser);
 
-//secured route 
-router.route("/logout").post(verifyJwt,logoutUser)
-
-
-
-
-export default router
+export default router;

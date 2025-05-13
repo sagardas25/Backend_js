@@ -1,0 +1,2 @@
+1. in this directory the  file uploaded via multer will be stored temporarily
+2. after getting uploaded on cloudinary files will get deleted from here 

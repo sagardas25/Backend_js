@@ -2,6 +2,7 @@ import mongoose, { Schema } from "mongoose";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 
+//Defines the structure of the user document in MongoDB.
 const userSchema = new Schema(
   {
     username: {
@@ -55,17 +56,28 @@ const userSchema = new Schema(
   }
 );
 
-userSchema.pre("save", async function (next) {
-  if (this.isModified("password")) return next();
-  this.password = bcrypt.hash(this.password, 10);
 
+//this is pre hook -- > a mongoose middleware function
+//It runs before (pre) the document is saved to the database
+//checks if the password field was modified and, if so, hashes it securely using bcrypt
+userSchema.pre("save", async function (next) {
+  if (!this.isModified("password")) return next();
+  this.password = await bcrypt.hash(this.password, 10);
+
+ // Continues to next middleware or completes the operation
+ // without it process hangs indefinitely
   next();
 });
 
+
+// below this are custom methods created using .methods.functionName
+
+//this is custom method to validate the password 
 userSchema.methods.isPasswordCorrect = async function (password) {
   return await bcrypt.compare(password, this.password);
 };
 
+//this is custom method to generate access token using JWT
 userSchema.methods.generateAccessToken = function () {
   return jwt.sign(
     {
@@ -78,6 +90,9 @@ userSchema.methods.generateAccessToken = function () {
     { expiresIn: process.env.ACCESS_TOKEN_EXPIRY }
   );
 };
+
+
+//this is custom method to generate access token using JWT
 userSchema.methods.generateRefreshToken = function () {
   return jwt.sign(
     {
@@ -88,4 +103,6 @@ userSchema.methods.generateRefreshToken = function () {
   );
 };
 
+
+//creates a Mongoose model named User based on the userSchema
 export const User = mongoose.model("User", userSchema);

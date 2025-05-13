@@ -1,3 +1,4 @@
+//Provide a consistent error structure including status codes, messages, error arrays, and stack traces.
 class ApiError extends Error {
   constructor(
     statusCode,
