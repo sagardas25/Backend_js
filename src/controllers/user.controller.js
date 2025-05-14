@@ -8,7 +8,9 @@ import {
 } from "../utills/cloudinary.js";
 import fs from "fs";
 import jwt from "jsonwebtoken";
+import { log } from "console";
 
+// used in "loginUser" and "refreshAccessToken" 
 const generateAccessAndRefreshToken = async (userId) => {
   try {
     const user = await User.findById(userId);
@@ -18,6 +20,9 @@ const generateAccessAndRefreshToken = async (userId) => {
     const refreshToken = user.generateRefreshToken();
 
     user.refreshToken = refreshToken;
+
+    //validateBeforeSave: false --> disables schema validation,
+    //only updating one field and don’t want to trigger full validation
     await user.save({ validateBeforeSave: false });
 
     return { accessToken, refreshToken };
@@ -25,6 +30,7 @@ const generateAccessAndRefreshToken = async (userId) => {
     throw new ApiError("500", "something went wrong during token generation");
   }
 };
+
 
 const logoutUser = asyncHandler(async (req, res) => {
   await User.findByIdAndUpdate(
@@ -51,10 +57,14 @@ const logoutUser = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, {}, "user logged out succesfully"));
 });
 
+
+
 const registerUser = asyncHandler(async (req, res) => {
   const { fullName, email, username, password } = req.body;
 
   //validation
+
+  // checks if the body is empty 
   if (Object.keys(req.body).length === 0 || !req.body) {
     throw new ApiError(400, "body is empty....");
   }
@@ -66,6 +76,7 @@ const registerUser = asyncHandler(async (req, res) => {
   }
 
   console.warn(req.files);
+  // fetching file paths located in local server which are uploaded via multur in routes section 
   const coverImageLocalPath = req.files?.coverImage?.[0]?.path;
   const avatarLocalPath = req.files?.avatar?.[0]?.path;
 
@@ -73,6 +84,9 @@ const registerUser = asyncHandler(async (req, res) => {
     $or: [{ email }, { username }],
   });
 
+  //delete the uploaded files in local server in case of existed user
+  //even if user exists file will be uploaded in local server
+  // beacause it uploads the files way before checking the exixted user
   if (existedUser) {
     fs.unlink(avatarLocalPath, (err) => {
       if (err) {
@@ -101,18 +115,18 @@ const registerUser = asyncHandler(async (req, res) => {
   //   coverImage = await uploadOnCloudinary(coverImageLocalPath);
   // }
 
-  let avatar;
 
+  // uploading avatar and cover image from local server 
+  let avatar;
   try {
     avatar = await uploadOnCloudinary(avatarLocalPath);
     console.log("uploaded avatar on cloudinary", avatar);
   } catch (error) {
-    console.log("erro in uploading avatar : " + error);
+    console.log("error in uploading avatar : " + error);
     throw new ApiError(500, "something went wrong during uploading avatar");
   }
 
   let coverImage;
-
   try {
     coverImage = await uploadOnCloudinary(coverImageLocalPath);
     console.log("uploaded coverImage on cloudinary", coverImage);
@@ -126,11 +140,13 @@ const registerUser = asyncHandler(async (req, res) => {
       fullName,
       avatar: avatar?.url,
       coverImage: coverImage?.url || "",
-      username: usename.toLowerCase(),
+      username: username.toLowerCase(),
       email,
       password,
     });
 
+
+    // extra fail safe
     const createdUser = await User.findById(user._id).select(
       "-password -refreshToken"
     );
@@ -148,6 +164,8 @@ const registerUser = asyncHandler(async (req, res) => {
     console.log(avatar);
     console.log(coverImage);
 
+    // deleting the files from cloudinary in case of failed user creation 
+    //the files will be uploaded in case other failure in registraion
     if (avatar) {
       console.log("deleted avatar from cloudinary");
       await deleteFromCloudinary(avatar.public_id);
@@ -163,6 +181,7 @@ const registerUser = asyncHandler(async (req, res) => {
     );
   }
 });
+
 
 const loginUser = asyncHandler(async (req, res) => {
   // get data from body
@@ -219,6 +238,8 @@ const loginUser = asyncHandler(async (req, res) => {
       )
     );
 });
+
+
 
 const refreshAccessToken = asyncHandler(async (req, res) => {
   const incomingRefreshToken =

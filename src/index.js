@@ -37,3 +37,6 @@ connectDB()
   .catch((err) => {
     console.log("DB connection errorr", err);
   });
+
+
+  

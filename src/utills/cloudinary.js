@@ -12,6 +12,7 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_CLOUD_SECRET, // Click 'View API Keys' above to copy your API secret
 });
 
+
 const uploadOnCloudinary = async (localFilePath) => {
   try {
     if (!localFilePath) return null;
@@ -30,7 +31,7 @@ const uploadOnCloudinary = async (localFilePath) => {
     fs.unlink(localFilePath, (err) => {
       if (err) {
         console.log(
-          "error in dleteing local server file after uploading on cloudinary" +
+          "error in deleting local server file after uploading on cloudinary" +
             err
         );
       }
@@ -42,9 +43,9 @@ const uploadOnCloudinary = async (localFilePath) => {
 
     fs.unlink(localFilePath, (err) => {
       if (err) {
-        console.log("error in deleting local server on  error" + err);
+        console.log("error in deleting from local server on  error" + err);
       }
-    }); // removing the file from local storage as well
+    }); // removing the file from local storage as well if failed to upload on cloudinary
     return null;
   }
 };
