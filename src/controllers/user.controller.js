@@ -219,8 +219,13 @@ const loginUser = asyncHandler(async (req, res) => {
   if (!loggedInUser) {
   }
 
+  //The options are used when setting cookies
   const options = {
+    //Ensures the cookie cannot be accessed or modified via JavaScript in the browser
+    //cookie is accesible only to server
     httpOnly: true,
+    //Ensures the cookie is only sent over HTTPS connections
+    // production sets secure to true i'e HTTPS
     secure: process.env.NODE_ENV === "production",
   };
 
