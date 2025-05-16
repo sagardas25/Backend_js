@@ -32,6 +32,8 @@ const generateAccessAndRefreshToken = async (userId) => {
 };
 
 
+//It is the logout controller 
+// It sets the refresh token undefined so user can't say logged in
 const logoutUser = asyncHandler(async (req, res) => {
   await User.findByIdAndUpdate(
     req.user._id,
@@ -56,7 +58,6 @@ const logoutUser = asyncHandler(async (req, res) => {
     .clearCookie("refressToken", options)
     .json(new ApiResponse(200, {}, "user logged out succesfully"));
 });
-
 
 
 const registerUser = asyncHandler(async (req, res) => {
@@ -245,8 +246,10 @@ const loginUser = asyncHandler(async (req, res) => {
 });
 
 
-
+// it is controller so that refresh token can be refreshed after the defined interval for security purpose
 const refreshAccessToken = asyncHandler(async (req, res) => {
+
+  // existing refresh token comes from the body or the cookie
   const incomingRefreshToken =
     req.cookies.refreshToken || req.body.refreshToken;
 
@@ -255,16 +258,22 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
   }
 
   try {
+
+    // decoding the refresh token
     const decodedToken = jwt.verify(
       incomingRefreshToken,
       process.env.REFRESH_TOKEN_SECRET
     );
 
+    // fetching user by the token
     const user = await User.findById(decodedToken?._id);
+
+    // user validation
     if (!user) {
       throw new ApiError(401, "Invalid refresh token...");
     }
 
+    // validating if the decoded token matches with the refresh token of user
     if (incomingRefreshToken !== user?.refreshToken) {
       throw new ApiError(401, "Invalid refresh token...");
     }
@@ -274,6 +283,8 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
       secure: process.env.NODE_ENV === "production",
     };
 
+    // generating  acces token and new refresh token 
+    // renaming refresh token as newRefreshToken in local scope
     const { accessToken, refreshToken: newRefreshToken } =
       await generateAccessAndRefreshToken(user._id);
 
@@ -296,16 +307,25 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
   }
 });
 
+
+
+// below these are the curd operations provided to user 
 const changeCurrentPassword = asyncHandler(async (req, res) => {
+  
+  //Destructures the old and new passwords from the request body 
+  //(i.e., the input sent by the client, usually from a password change form).
   const { oldPassword, newPassword } = req.body;
+  // getting user
   const user = await User.findById(req.user?._id);
 
+  //validating password
   const isPasswordValid = await user.isPasswordCorrect(oldPassword);
 
   if (!isPasswordValid) {
     throw new ApiError(401, "Old password is incorrect..");
   }
 
+  // setting password as the new password given by the user
   user.password = newPassword;
   await user.save({ validateBeforeSave: true });
 
@@ -321,12 +341,15 @@ const getCurrentUser = asyncHandler(async (req, res) => {
 });
 
 const updateAcoountDetails = asyncHandler(async (req, res) => {
+  
+  // giving options to change full Name and email
   const { fullName, email } = req.body;
 
   if (!fullName || !email) {
     throw new ApiError(401, "full name and email is required");
   }
 
+  // this is an mongoose query for updating data fields
   const user = User.findByIdAndUpdate(
     req.user?.id,
     {
@@ -336,7 +359,7 @@ const updateAcoountDetails = asyncHandler(async (req, res) => {
       },
     },
     { new: true }
-  ).select("-password -refreshToken");
+  ).select("-password -refreshToken");  // Fetch all fields except password and refreshToken due to security reasons
 
   return res
     .status(200)
@@ -344,6 +367,7 @@ const updateAcoountDetails = asyncHandler(async (req, res) => {
 });
 
 const chnageUserAvatar = asyncHandler(async (req, res) => {
+  
   const avatarLocalPath = req.file?.path;
 
   if (!avatarLocalPath) {
