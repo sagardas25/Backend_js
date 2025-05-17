@@ -350,7 +350,7 @@ const updateAcoountDetails = asyncHandler(async (req, res) => {
   }
 
   // this is an mongoose query for updating data fields
-  const user = User.findByIdAndUpdate(
+  const user = await User.findByIdAndUpdate(
     req.user?.id,
     {
       $set: {
@@ -366,28 +366,32 @@ const updateAcoountDetails = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, user, "Account details updated succesfully"));
 });
 
-const chnageUserAvatar = asyncHandler(async (req, res) => {
+const changeUserAvatar = asyncHandler(async (req, res) => {
   
+  // getting the avatar uploaded by the user
   const avatarLocalPath = req.file?.path;
 
+  //validating the path
   if (!avatarLocalPath) {
     throw new ApiError(401, "File is requied");
   }
 
+  //uploading it to cloudinary
   const avatar = await uploadOnCloudinary(avatarLocalPath);
 
   if (!avatar.url) {
     throw new ApiError(401, "something went wrong while uploading avatar");
   }
 
-  const user = User.findByIdAndUpdate(
+  const user = await User.findByIdAndUpdate(
     req.user?.id,
     {
       $set: {
+        //the key is part of DB (user schema) which takes a string as defined
         avatar: avatar.url,
       },
     },
-    { new: true }
+    { new: true } //ensures the updated user object is returned
   ).select("-password -refreshToken");
 
   return res
@@ -408,7 +412,7 @@ const chnageUserCoverImage = asyncHandler(async (req, res) => {
     throw new ApiError(401, "something went wrong while uploading cover Image");
   }
 
-  const user = User.findByIdAndUpdate(
+  const user = await User.findByIdAndUpdate(
     req.user?.id,
     {
       $set: {
@@ -431,6 +435,6 @@ export {
   changeCurrentPassword,
   getCurrentUser,
   updateAcoountDetails,
-  chnageUserAvatar,
+  changeUserAvatar,
   chnageUserCoverImage,
 };
