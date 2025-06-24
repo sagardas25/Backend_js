@@ -9,8 +9,10 @@ import {
 import fs from "fs";
 import jwt from "jsonwebtoken";
 import { log } from "console";
+import { subscribe } from "diagnostics_channel";
+import mongoose from "mongoose";
 
-// used in "loginUser" and "refreshAccessToken" 
+// used in "loginUser" and "refreshAccessToken"
 const generateAccessAndRefreshToken = async (userId) => {
   try {
     const user = await User.findById(userId);
@@ -31,8 +33,7 @@ const generateAccessAndRefreshToken = async (userId) => {
   }
 };
 
-
-//It is the logout controller 
+//It is the logout controller
 // It sets the refresh token undefined so user can't say logged in
 const logoutUser = asyncHandler(async (req, res) => {
   await User.findByIdAndUpdate(
@@ -59,13 +60,12 @@ const logoutUser = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, {}, "user logged out succesfully"));
 });
 
-
 const registerUser = asyncHandler(async (req, res) => {
   const { fullName, email, username, password } = req.body;
 
   //validation
 
-  // checks if the body is empty 
+  // checks if the body is empty
   if (Object.keys(req.body).length === 0 || !req.body) {
     throw new ApiError(400, "body is empty....");
   }
@@ -77,7 +77,7 @@ const registerUser = asyncHandler(async (req, res) => {
   }
 
   console.warn(req.files);
-  // fetching file paths located in local server which are uploaded via multur in routes section 
+  // fetching file paths located in local server which are uploaded via multur in routes section
   const coverImageLocalPath = req.files?.coverImage?.[0]?.path;
   const avatarLocalPath = req.files?.avatar?.[0]?.path;
 
@@ -116,8 +116,7 @@ const registerUser = asyncHandler(async (req, res) => {
   //   coverImage = await uploadOnCloudinary(coverImageLocalPath);
   // }
 
-
-  // uploading avatar and cover image from local server 
+  // uploading avatar and cover image from local server
   let avatar;
   try {
     avatar = await uploadOnCloudinary(avatarLocalPath);
@@ -146,7 +145,6 @@ const registerUser = asyncHandler(async (req, res) => {
       password,
     });
 
-
     // extra fail safe
     const createdUser = await User.findById(user._id).select(
       "-password -refreshToken"
@@ -165,7 +163,7 @@ const registerUser = asyncHandler(async (req, res) => {
     console.log(avatar);
     console.log(coverImage);
 
-    // deleting the files from cloudinary in case of failed user creation 
+    // deleting the files from cloudinary in case of failed user creation
     //the files will be uploaded in case other failure in registraion
     if (avatar) {
       console.log("deleted avatar from cloudinary");
@@ -182,7 +180,6 @@ const registerUser = asyncHandler(async (req, res) => {
     );
   }
 });
-
 
 const loginUser = asyncHandler(async (req, res) => {
   // get data from body
@@ -245,10 +242,8 @@ const loginUser = asyncHandler(async (req, res) => {
     );
 });
 
-
 // it is controller so that refresh token can be refreshed after the defined interval for security purpose
 const refreshAccessToken = asyncHandler(async (req, res) => {
-
   // existing refresh token comes from the body or the cookie
   const incomingRefreshToken =
     req.cookies.refreshToken || req.body.refreshToken;
@@ -258,7 +253,6 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
   }
 
   try {
-
     // decoding the refresh token
     const decodedToken = jwt.verify(
       incomingRefreshToken,
@@ -283,7 +277,7 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
       secure: process.env.NODE_ENV === "production",
     };
 
-    // generating  acces token and new refresh token 
+    // generating  acces token and new refresh token
     // renaming refresh token as newRefreshToken in local scope
     const { accessToken, refreshToken: newRefreshToken } =
       await generateAccessAndRefreshToken(user._id);
@@ -307,12 +301,9 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
   }
 });
 
-
-
-// below these are the curd operations provided to user 
+// below these are the curd operations provided to user
 const changeCurrentPassword = asyncHandler(async (req, res) => {
-  
-  //Destructures the old and new passwords from the request body 
+  //Destructures the old and new passwords from the request body
   //(i.e., the input sent by the client, usually from a password change form).
   const { oldPassword, newPassword } = req.body;
   // getting user
@@ -341,7 +332,6 @@ const getCurrentUser = asyncHandler(async (req, res) => {
 });
 
 const updateAcoountDetails = asyncHandler(async (req, res) => {
-  
   // giving options to change full Name and email
   const { fullName, email } = req.body;
 
@@ -359,7 +349,7 @@ const updateAcoountDetails = asyncHandler(async (req, res) => {
       },
     },
     { new: true }
-  ).select("-password -refreshToken");  // Fetch all fields except password and refreshToken due to security reasons
+  ).select("-password -refreshToken"); // Fetch all fields except password and refreshToken due to security reasons
 
   return res
     .status(200)
@@ -367,7 +357,6 @@ const updateAcoountDetails = asyncHandler(async (req, res) => {
 });
 
 const changeUserAvatar = asyncHandler(async (req, res) => {
-  
   // getting the avatar uploaded by the user
   const avatarLocalPath = req.file?.path;
 
@@ -399,7 +388,7 @@ const changeUserAvatar = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, user, "avatar updated succesfully"));
 });
 
-const chnageUserCoverImage = asyncHandler(async (req, res) => {
+const changeUserCoverImage = asyncHandler(async (req, res) => {
   const coverImageLocalPath = req.file?.path;
 
   if (!coverImageLocalPath) {
@@ -427,6 +416,112 @@ const chnageUserCoverImage = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, user, "cover Image updated succesfully"));
 });
 
+const getUserChannelProfile = asyncHandler(async (req, res) => {
+  const { username } = req.params;
+
+  if (!username?.trim()) {
+    throw new ApiError(401, "username is required...");
+  }
+
+  const channel = await User.aggregate([
+    {
+      $match: {
+        username: username?.toLowerCase(),
+      },
+    },
+
+    {
+      $lookup: {
+        from: "subscription",
+        localField: "_id",
+        foreignField: "channel",
+        as: "subscribers",
+      },
+    },
+    {
+      $lookup: {
+        from: "subscription",
+        localField: "_id",
+        foreignField: "subcriber",
+        as: "subscribedTo",
+      },
+    },
+
+    {
+      $addFields: {
+        subscriberCount: { $size: "$subscribers" },
+        subscribedToCount: { $size: "$subscribedTo" },
+        isSubscribed: {
+          $cond: {
+            if: { $in: [req.user?._id, "$subscribers.subscriber "] },
+            then: true,
+            else: false,
+          },
+        },
+      },
+    },
+
+    {
+      $project: {
+        fullName: 1,
+        username: 1,
+        avatar: 1,
+        subscriberCount: 1,
+        subscribedToCount: 1,
+        isSubscribed: 1,
+        coverImage: 1,
+        email: 1,
+      },
+    },
+  ]);
+
+  console.log("channel data : " + channel);
+
+  if (!channel?.length) {
+    throw new ApiError(401, "Channel not found...");
+  }
+
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(200, channel[0], "channel Profile created Succesfully")
+    );
+});
+
+const getWatchHistory = asyncHandler(async (req, res) => {
+  const user = await User.aggregate([
+    {
+      $match: {
+        _id: new mongoose.Types.ObjectId(req.user?._id),
+      },
+    },
+    {
+      $lookup: {
+        from: "Video",
+        localField: "watchHistory",
+        foreignField: "_id",
+        as: "watchHistory",
+      },
+    },
+
+    {
+      $addFields: {
+        owner: {
+          $first: "$owner",
+        },
+      },
+    },
+  ]);
+
+  return res
+  .status(200)
+  .json(
+    new ApiResponse(200, channel[0]?.watchHistory, "channel Profile created Succesfully")
+  );
+
+
+});
+
 export {
   registerUser,
   loginUser,
@@ -436,5 +531,7 @@ export {
   getCurrentUser,
   updateAcoountDetails,
   changeUserAvatar,
-  chnageUserCoverImage,
+  changeUserCoverImage,
+  getWatchHistory,
+  getUserChannelProfile
 };
