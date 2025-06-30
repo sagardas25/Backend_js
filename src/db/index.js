@@ -7,12 +7,13 @@ const connectDB = async () => {
       `${process.env.MONGODB_URL}/${DB_NAME}`
     );
 
-    console.log(`\n DB connected !! , DB host : ${connectionInstance.connection.host}`);
+    console.log(
+      `\n DB connected !! , DB host : ${connectionInstance.connection.host}`
+    );
   } catch (error) {
     console.log("database connection error : ", error);
     process.exit(1);
   }
 };
-
 
 export default connectDB;
